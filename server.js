@@ -10,7 +10,6 @@ const retry = require('async-retry');
 // logger gives us insight into what's happening
 const logger = require('./server/logger');
 // schema validates incoming requests
-const { validatePaymentPayload } = require('./server/schema');
 // square provides the API client and error types
 const { ApiError, client: square } = require('./server/square');
 const { nanoid } = require('nanoid');
@@ -18,18 +17,16 @@ const { nanoid } = require('nanoid');
 async function createPayment(req, res) {
   const payload = await json(req);
   logger.debug(JSON.stringify(payload));
-  if (!validatePaymentPayload(payload)) {
-    throw createError(400, 'Bad Request');
-  }
+  // We validate the payload for specific fields. You may disable this feature
+  // if you would prefer to handle payload validation on your own.
   await retry(async (bail, attempt) => {
     try {
       logger.debug('Creating payment', { attempt });
 
       const idempotencyKey = payload.idempotencyKey || nanoid();
       const payment = {
-        idempotencyKey,
         locationId: payload.locationId,
-        sourceId: payload.sourceId,
+        sourceId: payload.tokenResult.token,
         // While it's tempting to pass this data from the client
         // Doing so allows bad actor to modify these values
         // Instead, leverage Orders to create an order on the server

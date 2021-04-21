@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="app.css" rel="stylesheet" />
+    <script
+      type="text/javascript"
+      src="https://sandbox.web.squarecdn.com/v0/square.js"
+    ></script>
+    <script type="module">
+      import createPayment from './services/create-payment.js';
+      import { getBillingContact } from '../helpers/form.js';
+
+      const appId = 'sandbox-sq0idb-lybe_WkfKNAbb3WklswmwA';
+      const locationId = 'LKYXSPGPXK05M';
+
+      // Call this function to tokenize the card, verify the buyer, and create a payment.
+      async function createCardPayment(
+        card,
+        payments,
+        billingContact,
+        { intent, locationId, idempotencyKey, amount, currencyCode }
+      ) {
+        // Tokenize Card
+        const tokenResult = await card.tokenize();
+
+        if (tokenResult.status === 'OK') {
+          const verificationDetails = await payments.verifyBuyer(
+            tokenResult.token, // force verifyBuyer nonce here
+            {
+              intent,
+              billingContact,
+              amount,
+              currencyCode,
+            }
+          );
+
+          if (tokenResult && verificationDetails) {
+            const paymentResult = await createPayment({
+              tokenResult,
+              verificationDetails,
+              locationId,
+              idempotencyKey,
+            });
+
+            if (paymentResult) {
+              console.debug('Card Payment Complete', paymentResult);
+
+              return paymentResult;
+            }
+          }
+        }
+
+        return false;
+      }
+
+      function createCardPaymentOnFormSubmit(payments, card, paymentDetails) {
+        const cardForm = document.querySelector('#card-form');
+        const event = 'submit';
+        return new Promise((resolve) => {
+          cardForm.addEventListener(event, async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // disable form submission
+            const submitButton = cardForm.querySelector(
+              'button[type="submit"]'
+            );
+            submitButton.disabled = true;
+
+            // Get other data bound to form submission
+            const billingContact = getBillingContact(cardForm);
+
+            const paymentResult = await createCardPayment(
+              card,
+              payments,
+              billingContact,
+              paymentDetails
+            );
+
+            if (paymentResult) {
+              resolve(paymentResult);
+            }
+
+            // Re-enable the button if we don't succeed
+            submitButton.disabled = false;
+          });
+        });
+      }
+
+      async function initializePayments(appId, locationId) {
+        try {
+          const payments = window.Square.payments(appId, locationId);
+
+          const card = await payments.card();
+
+          const cardContainer = '#card-container';
+          await card.attach(cardContainer);
+
+          const paymentDetails = {
+            intent: 'CHARGE',
+            amount: '1.00',
+            currencyCode: 'US',
+            countryCode: 'USD',
+            locationId,
+          };
+          return createCardPaymentOnFormSubmit(card, payments, paymentDetails);
+        } catch (e) {
+          console.error('Initializing Card failed', e);
+        }
+      }
+
+      initializePayments(appId, locationId).then((paymentResult) => {
+        console.debug('Payment Success', paymentResult);
+      });
+    </script>
+  </head>
+  <body>
+    <form id="card-form" class="payment-form">
+      <div class="buyer-inputs">
+        <input
+          type="text"
+          aria-required="true"
+          aria-label="First Name"
+          required="required"
+          placeholder="Given Name"
+          name="givenName"
+        />
+
+        <input
+          type="text"
+          aria-required="true"
+          aria-label="Last Name"
+          required="required"
+          placeholder="Family Name"
+          name="familyName"
+        />
+      </div>
+
+      <div id="card-container"></div>
+
+      <button type="submit">Pay</button>
+    </form>
+  </body>
+</html>

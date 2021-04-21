@@ -5,6 +5,9 @@ const ajv = new Ajv(); // options can be passed, e.g. {allErrors: true}
 // JSON Type Definition https://ajv.js.org/guide/getting-started.html#basic-data-validation
 const paymentSchema = {
   properties: {
+    total: {
+      currencyCode: { type: 'string' },
+    },
     sourceId: { type: 'string' },
     locationId: { type: 'string' },
   },

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="app.css" rel="stylesheet" />
+    <script
+      type="text/javascript"
+      src="https://sandbox.web.squarecdn.com/v0/square.js"
+    ></script>
+    <script type="module">
+      // Checkpoint 2
+      import createPayment from './services/create-payment.js';
+
+      // Checkpoint 1
+      const appId = 'sandbox-sq0idb-lybe_WkfKNAbb3WklswmwA';
+      const locationId = 'LKYXSPGPXK05M';
+
+      // Checkpoint 1
+      async function initializePayments(appId, locationId) {
+        try {
+          const payments = window.Square.payments(appId, locationId);
+
+          const giftCard = await payments.giftCard();
+
+          const cardContainer = '#gift-card-container';
+          await giftCard.attach(cardContainer);
+
+          // Checkpoint 2
+          const giftCardForm = document.querySelector('#gift-card-form');
+          const event = 'submit';
+          return new Promise((resolve) => {
+            giftCardForm.addEventListener(event, async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              const tokenResult = await giftCard.tokenize();
+
+              if (tokenResult.status === 'OK') {
+                const paymentResult = await createPayment({ tokenResult });
+
+                if (paymentResult) {
+                  // disable form submission on success to prevent duplicate submissions
+                  const submitButton = giftCardForm.querySelector(
+                    'button[type="submit"]'
+                  );
+                  submitButton.disabled = true;
+
+                  resolve(paymentResult);
+                }
+              }
+            });
+          });
+        } catch (e) {
+          console.error('Initializing Gift Card failed', e);
+        }
+      }
+
+      // Checkpoint 1
+      initializePayments(appId, locationId)
+        // Checkpoint 2
+        .then((paymentResult) => {
+          console.debug('Payment Success', paymentResult);
+        });
+    </script>
+  </head>
+  <body>
+    <form id="gift-card-form" class="payment-form">
+      <div id="gift-card-container"></div>
+
+      <button type="submit">Apply Gift Card Balance</button>
+    </form>
+  </body>
+</html>

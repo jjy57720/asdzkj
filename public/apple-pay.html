@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="app.css" rel="stylesheet" />
+    <script
+      type="text/javascript"
+      src="https://sandbox.web.squarecdn.com/v0/square.js"
+    ></script>
+    <script type="module">
+      // Checkpoint 2
+      import createPayment from './services/create-payment.js';
+
+      // Checkpoint 1
+      const appId = 'sandbox-sq0idb-lybe_WkfKNAbb3WklswmwA';
+      const locationId = 'LKYXSPGPXK05M';
+
+      // Checkpoint 1
+      async function initializePayments(appId, locationId) {
+        try {
+          const payments = window.Square.payments(appId, locationId);
+
+          const paymentRequest = payments.paymentRequest({
+            countryCode: 'US',
+            currencyCode: 'USD',
+            total: {
+              amount: '1.00',
+              label: 'Total',
+            },
+          });
+
+          const applePay = await payments.applePay(paymentRequest);
+          // Note: Apple Pay does not have an .attach(...) method
+          // It's automatically attached by the browser.
+
+          // Checkpoint 2
+          const applePayButton = document.querySelector('#apple-pay-container');
+          const event = 'click';
+          return new Promise((resolve) => {
+            applePayButton.addEventListener(event, async () => {
+              const tokenResult = await applePay.tokenize();
+
+              if (tokenResult.status === 'OK') {
+                const paymentResult = await createPayment({ tokenResult });
+
+                if (paymentResult) {
+                  resolve(paymentResult);
+                }
+              }
+            });
+          });
+        } catch (e) {
+          console.error('Initializing Apple Pay failed', e);
+        }
+      }
+
+      // Checkpoint 1
+      initializePayments(appId, locationId)
+        // Checkpoint 2
+        .then((paymentResult) => {
+          console.debug('Payment Success', paymentResult);
+        });
+    </script>
+  </head>
+  <body>
+    <div id="apple-pay-container" class="payment-form"></div>
+  </body>
+</html>
